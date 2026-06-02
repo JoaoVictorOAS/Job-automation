@@ -1,6 +1,4 @@
-import dotenv from 'dotenv';
-dotenv.config();
-
+import 'dotenv/config';
 import cron from 'node-cron';
 import chalk from 'chalk';
 import fs from 'fs';
