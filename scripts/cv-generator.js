@@ -1,4 +1,6 @@
 import OpenAI from 'openai';
+import fs from 'fs';
+import path from 'path';
 
 // Usar Deepseek via OpenAI SDK com endpoint customizado
 const client = new OpenAI({
@@ -6,63 +8,39 @@ const client = new OpenAI({
   baseURL: 'https://api.deepseek.com/beta'
 });
 
-// CV Base do João Victor (FIXO - não será personalizado)
-const BASE_CV = `JOÃO VICTOR DOS SANTOS ASSIS DE OLIVEIRA
-Desenvolvedor Full Stack — PHP · React · TypeScript
+// Funcao para carregar o CV Base do arquivo preenchido pelo usuario
+const getBaseCV = () => {
+  const cvPath = path.join(process.cwd(), 'data', 'base_cv.txt');
+  if (fs.existsSync(cvPath)) {
+    return fs.readFileSync(cvPath, 'utf8');
+  }
+  
+  // Fallback seguro caso o arquivo tenha sido deletado
+  return `${process.env.PROFILE_NAME || 'Candidato'}
+Desenvolvedor(a)
 
-Rondonópolis, MT | dev.joaovictor.oas@gmail.com | (66) 99900-1680
-GitHub: github.com/JoaoVictorOAS | LinkedIn: linkedin.com/in/joao-victor-dos-santos-518289256
+${process.env.PROFILE_EMAIL || 'Email não informado'} | ${process.env.PROFILE_PHONE || 'Telefone não informado'}
+GitHub: ${process.env.PROFILE_GITHUB || 'N/A'} | LinkedIn: ${process.env.PROFILE_LINKEDIN || 'N/A'}
 
 RESUMO PROFISSIONAL
+[Edite o arquivo data/base_cv.txt para adicionar seu resumo]
 
-Desenvolvedor Full Stack com experiência em PHP (Laravel/Adianti) e React/TypeScript, atuando em projetos de saúde, gestão clínica e sistemas empresariais. Estudante de Engenharia de Software (UFR). Instrutor acadêmico de IA/Deep Learning e revisor técnico de LLMs com foco em Clean Code e SOLID.
+EXPERIENCIA PROFISSIONAL
+[Edite o arquivo data/base_cv.txt para adicionar suas experiências]
 
-EXPERIÊNCIA PROFISSIONAL
-
-Desenvolvedor Front-end React/TypeScript | Nov 2025 — Atual | Cathi Soluções · Remoto
-• SPAs para saúde e gestão clínica (Mosaico): +93 mil requisições/dia em produção
-• Arquitetura de front-end com componentes reutilizáveis e integração ao Supabase (BaaS)
-• Otimização de performance e responsividade cross-device
-
-Desenvolvedor de Sistemas PHP | Nov 2025 — Atual | SOGG Software
-• Desenvolvimento de sistemas web empresariais em PHP/MySQL com POO
-• Integração de APIs e correção de bugs críticos em sistemas legados
-
-Revisor Técnico de IA | Dez 2025 — Atual | Revelo
-• Validação técnica de outputs de LLMs, identificando alucinações e falhas conceituais
-• Refinamento via RLHF com critérios de Clean Code, SOLID e benchmarking de qualidade
-
-COMPETÊNCIAS TÉCNICAS
-
-Back-end: PHP, Laravel, Adianti, Node.js, Java
-Front-end: React, TypeScript, JavaScript
-Bancos de Dados: MySQL, PostgreSQL, PL/SQL
-DevOps & Tools: Git, Docker, CI/CD, Google Cloud
-Testes & Qualidade: JUnit, Clean Code, SOLID
-IA/ML: Python, TensorFlow, PyTorch, LLMs
-
-FORMAÇÃO ACADÊMICA
-
-Engenharia de Software | UFR | 2024 — 2028
-Técnico em Informática | IFMT | 2020 — 2023
-
-IDIOMAS
-
-Inglês — B1 (Intermediário) | Mandarim — A1 (Básico)`;
+COMPETENCIAS TECNICAS
+[Edite o arquivo data/base_cv.txt para adicionar suas competências]`;
+};
 
 class CVGenerator {
   async calculateMatchScore(job) {
     try {
+      const cvContent = getBaseCV();
       const prompt = `
 Analise o match entre um perfil de desenvolvedor e uma descrição de vaga.
 
 PERFIL DO DESENVOLVEDOR:
-- Full Stack Developer (React/TypeScript, PHP, Node.js)
-- Experiência em produção: 93k requisições/dia
-- Stack: React, TypeScript, Node.js, PHP (Adianti), PostgreSQL, Docker
-- Instrutor de IA/Deep Learning
-- Revisor técnico de LLMs
-- ~1-2 anos de experiência profissional focada
+${cvContent.substring(0, 1000)}
 
 VAGA:
 Título: ${job.title}
@@ -137,7 +115,7 @@ Retorne APENAS a frase (em português), sem aspas ou formatação.`;
         ...job,
         matchScore,
         personalizedNote,
-        cv: BASE_CV // CV fixo, não personalizado
+        cv: getBaseCV() // Agora consome dinamicamente do arquivo editavel
       };
     } catch (error) {
       console.error(`Erro ao enriquecer vaga ${job.title}:`, error.message);
@@ -145,7 +123,7 @@ Retorne APENAS a frase (em português), sem aspas ou formatação.`;
         ...job,
         matchScore: 50,
         personalizedNote: null,
-        cv: BASE_CV,
+        cv: getBaseCV(),
         error: error.message
       };
     }

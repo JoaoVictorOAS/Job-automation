@@ -62,7 +62,7 @@ Obtém em: https://console.anthropic.com/
 
 **GMAIL:**
 ```
-GMAIL_USER=dev.joaovictor.oas@gmail.com
+GMAIL_USER=seu_email@gmail.com
 GMAIL_PASSWORD=xxxx xxxx xxxx xxxx
 ```
 
@@ -74,11 +74,11 @@ GMAIL_PASSWORD=xxxx xxxx xxxx xxxx
 
 **RESUME DATA:**
 ```
-PROFILE_NAME=João Victor dos Santos Assis de Oliveira
-PROFILE_EMAIL=dev.joaovictor.oas@gmail.com
-PROFILE_PHONE=(66) 99900-1680
-PROFILE_GITHUB=https://github.com/JoaoVictorOAS
-PROFILE_LINKEDIN=https://www.linkedin.com/in/joao-victor-dos-santos-518289256/
+PROFILE_NAME=Seu Nome Completo
+PROFILE_EMAIL=seu_email@gmail.com
+PROFILE_PHONE=(11) 99999-9999
+PROFILE_GITHUB=https://github.com/seu-usuario
+PROFILE_LINKEDIN=https://www.linkedin.com/in/seu-usuario/
 ```
 
 **SEARCH SETTINGS:**
