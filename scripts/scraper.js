@@ -6,9 +6,8 @@ class JobScraper {
   constructor() {
     this.headers = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
       'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
-      'Accept-Encoding': 'gzip, deflate, br, zstd',
       'Connection': 'keep-alive',
       'Upgrade-Insecure-Requests': '1',
       'Sec-Fetch-Dest': 'document',
@@ -19,9 +18,21 @@ class JobScraper {
     };
   }
 
+  // Funcao utilitaria para substituir o waitForTimeout do Puppeteer v22+
+  delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
   async scrapeIndeed() {
     try {
-      console.log('🔍 Scraping Indeed...');
+      console.log('[BUSCA] Scraping Indeed (via Puppeteer)...');
+      const browser = await puppeteer.launch({ 
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      });
+      const page = await browser.newPage();
+      await page.setUserAgent(this.headers['User-Agent']);
+      
       const jobs = [];
       const keywords = process.env.SEARCH_KEYWORDS.split(',');
 
@@ -29,45 +40,57 @@ class JobScraper {
         const url = `https://br.indeed.com/jobs?q=${encodeURIComponent(keyword)}&l=Remoto`;
         
         try {
-          const { data } = await axios.get(url, { headers: this.headers, timeout: 10000 });
-          const $ = cheerio.load(data);
+          await page.goto(url, { waitUntil: 'networkidle2', timeout: 20000 });
+          await this.delay(3000); 
 
-          $('[data-job-id]').each((i, el) => {
-            if (i > 15) return; // Limitar a 15 por keyword
+          const jobsData = await page.evaluate(() => {
+            const results = [];
+            document.querySelectorAll('.job_seen_beacon').forEach((el, i) => {
+              if (i > 15) return;
+              const titleEl = el.querySelector('.jobTitle span');
+              const companyEl = el.querySelector('[data-testid="company-name"]');
+              const salaryEl = el.querySelector('.salary-snippet-container');
+              const descEl = el.querySelector('.jobMetaDataGroup, .job-snippet');
+              const linkEl = el.querySelector('.jcs-JobTitle');
 
-            const $el = $(el);
-            const job = {
-              id: $el.attr('data-job-id'),
-              title: $el.find('.jobTitle span').text().trim(),
-              company: $el.find('[data-company-name]').text().trim(),
-              location: 'Remoto',
-              salary: $el.find('.salary-snippet').text().trim() || 'Não informado',
-              description: $el.find('.job-snippet').text().trim(),
-              url: `https://br.indeed.com/viewjob?jk=${$el.attr('data-job-id')}`,
-              source: 'indeed',
-              postedDate: new Date(),
-              applicationUrl: null
-            };
+              results.push({
+                id: linkEl ? linkEl.getAttribute('data-jk') : `indeed-${Date.now()}-${i}`,
+                title: titleEl ? titleEl.textContent.trim() : '',
+                company: companyEl ? companyEl.textContent.trim() : '',
+                salary: salaryEl ? salaryEl.textContent.trim() : 'Nao informado',
+                description: descEl ? descEl.textContent.trim() : ''
+              });
+            });
+            return results;
+          });
 
+          jobsData.forEach(job => {
             if (job.title && job.company) {
-              jobs.push(job);
+              jobs.push({
+                ...job,
+                location: 'Remoto',
+                url: `https://br.indeed.com/viewjob?jk=${job.id}`,
+                source: 'indeed',
+                postedDate: new Date(),
+                applicationUrl: null
+              });
             }
           });
         } catch (e) {
-          console.warn(`Erro ao scraping Indeed para "${keyword}":`, e.message);
+          console.warn(`[AVISO] Erro ao scraping Indeed para "${keyword}":`, e.message);
         }
       }
-
+      await browser.close();
       return jobs;
     } catch (error) {
-      console.error('Erro ao fazer scraping no Indeed:', error.message);
+      console.error('[ERRO] Erro ao fazer scraping no Indeed:', error.message);
       return [];
     }
   }
 
   async scrapeBeBee() {
     try {
-      console.log('🔍 Scraping BeBee...');
+      console.log('[BUSCA] Scraping BeBee...');
       const jobs = [];
       const keywords = process.env.SEARCH_KEYWORDS.split(',').slice(0, 2);
 
@@ -80,7 +103,6 @@ class JobScraper {
 
           $('[data-job-id], .job-item').each((i, el) => {
             if (i > 10) return;
-
             const $el = $(el);
             const titleEl = $el.find('.job-title, h2, [data-testid="job-title"]');
             const companyEl = $el.find('.company-name, [data-testid="company-name"]');
@@ -90,7 +112,7 @@ class JobScraper {
               title: titleEl.text().trim(),
               company: companyEl.text().trim(),
               location: 'Remoto',
-              salary: $el.find('.salary, [data-testid="salary"]').text().trim() || 'Não informado',
+              salary: $el.find('.salary, [data-testid="salary"]').text().trim() || 'Nao informado',
               description: $el.find('.job-description, p').text().trim(),
               url: $el.find('a').attr('href') || '',
               source: 'bebee',
@@ -103,50 +125,54 @@ class JobScraper {
             }
           });
         } catch (e) {
-          console.warn(`Erro ao scraping BeBee para "${keyword}":`, e.message);
+          if (e.response && e.response.status === 410) {
+            console.warn(`[AVISO] BeBee alterou a rota de busca (Erro 410) para "${keyword}". Rota indisponivel.`);
+          } else {
+            console.warn(`[AVISO] Erro ao scraping BeBee para "${keyword}":`, e.message);
+          }
         }
       }
-
       return jobs;
     } catch (error) {
-      console.error('Erro ao fazer scraping no BeBee:', error.message);
       return [];
     }
   }
 
   async scrapeGlassdoor() {
     try {
-      console.log('🔍 Scraping Glassdoor...');
+      console.log('[BUSCA] Scraping Glassdoor...');
       const browser = await puppeteer.launch({ 
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
+        args: ['--no-sandbox', '--disable-setuid-sandbox'] 
       });
       const page = await browser.newPage();
+      await page.setUserAgent(this.headers['User-Agent']);
+      
       const jobs = [];
-
       const keywords = process.env.SEARCH_KEYWORDS.split(',').slice(0, 1);
 
       for (const keyword of keywords) {
         const url = `https://www.glassdoor.com.br/Vaga/${encodeURIComponent(keyword)}-vagas-SRCH_KO0,${keyword.length}.htm`;
 
         try {
-          await page.goto(url, { waitUntil: 'networkidle2', timeout: 15000 });
-          await page.waitForTimeout(2000);
+          await page.goto(url, { waitUntil: 'networkidle2', timeout: 20000 });
+          
+          await this.delay(3000); 
 
           const jobsData = await page.evaluate(() => {
-            const jobs = [];
+            const results = [];
             document.querySelectorAll('[data-job-id]').forEach((el, i) => {
               if (i > 10) return;
               
-              jobs.push({
+              results.push({
                 id: el.getAttribute('data-job-id'),
                 title: el.querySelector('[class*="jobTitle"]')?.textContent?.trim() || '',
                 company: el.querySelector('[class*="employer"]')?.textContent?.trim() || '',
-                salary: el.querySelector('[class*="salary"]')?.textContent?.trim() || 'Não informado',
+                salary: el.querySelector('[class*="salary"]')?.textContent?.trim() || 'Nao informado',
                 description: el.querySelector('[class*="snippet"]')?.textContent?.trim() || ''
               });
             });
-            return jobs;
+            return results;
           });
 
           jobsData.forEach(job => {
@@ -162,37 +188,30 @@ class JobScraper {
             }
           });
         } catch (e) {
-          console.warn(`Erro ao scraping Glassdoor para "${keyword}":`, e.message);
+          console.warn(`[AVISO] Erro ao scraping Glassdoor para "${keyword}":`, e.message);
         }
       }
 
       await browser.close();
       return jobs;
     } catch (error) {
-      console.error('Erro ao fazer scraping no Glassdoor:', error.message);
+      console.error('[ERRO] Erro ao fazer scraping no Glassdoor:', error.message);
       return [];
     }
   }
 
   async scrapeLinkedIn() {
     try {
-      console.log('🔍 Scraping LinkedIn (limitado)...');
-      // LinkedIn tem proteções rigorosas, aqui fazemos uma abordagem minimal
-      // Para production, considere usar LinkedIn API oficial ou serviço de scraping
-      
-      const jobs = [];
-      // Placeholder para implementação com login/session
-      console.warn('⚠️  LinkedIn scraping requer autenticação - pulando para agora');
-      
-      return jobs;
+      console.log('[BUSCA] Scraping LinkedIn (limitado)...');
+      console.warn('[AVISO] LinkedIn scraping requer autenticacao - pulando para agora');
+      return [];
     } catch (error) {
-      console.error('Erro ao fazer scraping no LinkedIn:', error.message);
       return [];
     }
   }
 
   async scrapeAllPlatforms() {
-    console.log('\n📋 Iniciando coleta de vagas...\n');
+    console.log('\n[INICIO] Iniciando coleta de vagas...\n');
     
     const [
       indeedJobs,
@@ -213,13 +232,11 @@ class JobScraper {
       ...linkedinJobs
     ];
 
-    // Remover duplicatas
     const uniqueJobs = Array.from(
       new Map(allJobs.map(job => [job.title + job.company, job])).values()
     );
 
-    console.log(`\n✅ Total de vagas coletadas: ${uniqueJobs.length}\n`);
-    
+    console.log(`\n[SUCESSO] Total de vagas coletadas: ${uniqueJobs.length}\n`);
     return uniqueJobs;
   }
 }
