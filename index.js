@@ -20,6 +20,14 @@ dirs.forEach(dir => {
   }
 });
 
+// Configuração de execução dos scrapers
+const scraperConfig = {
+  useIndeed: true,
+  useBeBee: true,
+  useGlassdoor: true,
+  useLinkedIn: false
+};
+
 const log = (msg, type = 'info') => {
   const timestamp = new Date().toISOString();
   const prefix = {
@@ -90,7 +98,7 @@ class JobAutomationSystem {
       log('=========================================', 'info');
 
       log('Etapa 1: Coletando vagas...', 'job');
-      const jobs = await this.scraper.scrapeAllPlatforms();
+      const jobs = await this.scraper.scrapeAllPlatforms(scraperConfig);
       log(`[OK] ${jobs.length} vagas coletadas`, 'success');
 
       if (jobs.length === 0) {
