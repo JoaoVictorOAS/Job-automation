@@ -202,10 +202,95 @@ class JobScraper {
 
   async scrapeLinkedIn() {
     try {
-      console.log('[BUSCA] Scraping LinkedIn (limitado)...');
-      console.warn('[AVISO] LinkedIn scraping requer autenticacao - pulando para agora');
-      return [];
+      console.log('[BUSCA] Scraping LinkedIn...');
+      
+      const liAtCookie = process.env.LINKEDIN_LI_AT;
+      if (!liAtCookie) {
+        console.warn('[AVISO] LINKEDIN_LI_AT nao configurado no .env. Pulando LinkedIn.');
+        return [];
+      }
+
+      const browser = await puppeteer.launch({ 
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox'] 
+      });
+      const page = await browser.newPage();
+      await page.setUserAgent(this.headers['User-Agent']);
+      
+      // Injeta o cookie para emular que voce esta logado
+      await page.setCookie({
+        name: 'li_at',
+        value: liAtCookie,
+        domain: '.linkedin.com'
+      });
+
+      const jobs = [];
+      // Limitamos a 1 keyword para evitar muitas requisicoes e risco de banimento
+      const keywords = process.env.SEARCH_KEYWORDS.split(',').slice(0, 1);
+
+      for (const keyword of keywords) {
+        // f_WT=2 e o filtro interno do LinkedIn para vagas "Remotas"
+        const url = `https://www.linkedin.com/jobs/search/?keywords=${encodeURIComponent(keyword)}&f_WT=2&location=Brasil`;
+        
+        try {
+          await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+          await this.delay(5000); // Espera carregamento inicial
+
+          const jobsData = await page.evaluate(async () => {
+            const results = [];
+            const jobCards = document.querySelectorAll('.job-card-container');
+            
+            // Limitado a 5 vagas por ciclo para evitar bloqueios da conta
+            const limit = Math.min(jobCards.length, 5);
+            
+            for (let i = 0; i < limit; i++) {
+              const card = jobCards[i];
+              
+              // Clica no card para a descricao carregar no painel direito
+              card.click();
+              
+              // Pequena pausa artificial para a requisicao AJAX da descricao terminar
+              await new Promise(r => setTimeout(r, 2000));
+              
+              const titleEl = card.querySelector('.job-card-list__title, .artdeco-entity-lockup__title');
+              const companyEl = card.querySelector('.job-card-container__company-name, .artdeco-entity-lockup__subtitle');
+              const linkEl = card.querySelector('a.job-card-container__link, a.job-card-list__title');
+              const descEl = document.querySelector('.jobs-description__content, .jobs-description-content__text');
+              
+              if (titleEl && companyEl) {
+                results.push({
+                  id: card.getAttribute('data-job-id') || `li-${Date.now()}-${i}`,
+                  title: titleEl.textContent.trim(),
+                  company: companyEl.textContent.trim(),
+                  salary: 'Nao informado',
+                  description: descEl ? descEl.textContent.trim().substring(0, 1000) : 'Descricao nao carregada.',
+                  linkHref: linkEl ? linkEl.href : null
+                });
+              }
+            }
+            return results;
+          });
+
+          jobsData.forEach(job => {
+            jobs.push({
+              ...job,
+              location: 'Remoto',
+              url: job.linkHref || `https://www.linkedin.com/jobs/view/${job.id}`,
+              source: 'linkedin',
+              postedDate: new Date(),
+              applicationUrl: null
+            });
+          });
+
+        } catch (e) {
+          console.warn(`[AVISO] Erro ao scraping LinkedIn para "${keyword}":`, e.message);
+        }
+      }
+
+      await browser.close();
+      return jobs;
     } catch (error) {
+      console.error('[ERRO] Erro ao fazer scraping no LinkedIn:', error.message);
       return [];
     }
   }
