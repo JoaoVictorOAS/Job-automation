@@ -95,7 +95,7 @@ class JobScraper {
       const keywords = process.env.SEARCH_KEYWORDS.split(',').slice(0, 2);
 
       for (const keyword of keywords) {
-        const url = `https://bebee.com/br/jobs/search/${encodeURIComponent(keyword)}`;
+        const url = `https://bebee.com/br/jobs?q=${encodeURIComponent(keyword)}`;
 
         try {
           const { data } = await axios.get(url, { headers: this.headers, timeout: 10000 });
@@ -295,20 +295,52 @@ class JobScraper {
     }
   }
 
-  async scrapeAllPlatforms() {
+  async scrapeAllPlatforms(config) {
     console.log('\n[INICIO] Iniciando coleta de vagas...\n');
     
+    const activeScrapers = config || { 
+      useIndeed: true, 
+      useBeBee: true, 
+      useGlassdoor: true, 
+      useLinkedIn: true 
+    };
+
+    const promises = [];
+
+    if (activeScrapers.useIndeed) {
+      promises.push(this.scrapeIndeed());
+    } else {
+      console.log('[PULO] Scraping Indeed desativado.');
+      promises.push(Promise.resolve([]));
+    }
+
+    if (activeScrapers.useBeBee) {
+      promises.push(this.scrapeBeBee());
+    } else {
+      console.log('[PULO] Scraping BeBee desativado.');
+      promises.push(Promise.resolve([]));
+    }
+
+    if (activeScrapers.useGlassdoor) {
+      promises.push(this.scrapeGlassdoor());
+    } else {
+      console.log('[PULO] Scraping Glassdoor desativado.');
+      promises.push(Promise.resolve([]));
+    }
+
+    if (activeScrapers.useLinkedIn) {
+      promises.push(this.scrapeLinkedIn());
+    } else {
+      console.log('[PULO] Scraping LinkedIn desativado.');
+      promises.push(Promise.resolve([]));
+    }
+
     const [
       indeedJobs,
       bebeeJobs,
       glassdoorJobs,
       linkedinJobs
-    ] = await Promise.all([
-      this.scrapeIndeed(),
-      this.scrapeBeBee(),
-      this.scrapeGlassdoor(),
-      this.scrapeLinkedIn()
-    ]);
+    ] = await Promise.all(promises);
 
     const allJobs = [
       ...indeedJobs,
