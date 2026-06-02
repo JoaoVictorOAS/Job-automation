@@ -113,7 +113,8 @@ Retorne APENAS os requisitos em lista simples.`;
     let browser;
     try {
       browser = await puppeteer.launch({ 
-        headless: process.env.HEADLESS_BROWSER !== 'false'
+        headless: process.env.HEADLESS_BROWSER !== 'false',
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
       });
       
       const page = await browser.newPage();
