@@ -9,13 +9,13 @@ Sistema automático de candidatura a vagas com geração de CV personalizado, co
 ## 📋 O Que Faz
 
 ```
-Scraping (Indeed, BeBee, Glassdoor) 
+Scraping (Indeed, BeBee, Glassdoor, LinkedIn) 
     ↓
-Análise de Relevância (Claude API)
+Análise de Relevância (DeepSeek API)
     ↓
-Geração de CV Personalizado (Claude API)
+Geração de CV Personalizado (DeepSeek API)
     ↓
-Geração de Cover Letter (Claude API)
+Geração de Cover Letter (DeepSeek API)
     ↓
 Envio de Email Automático (Gmail SMTP)
     ↓
@@ -34,7 +34,8 @@ Rastreamento em Banco de Dados (SQLite)
 
 - Node.js 16+ instalado
 - Gmail com autenticação de app
-- API key da Anthropic (Claude)
+- API key da DeepSeek
+- Token do LinkedIn (cookie li_at)
 
 ### 2. **Instalar Dependências**
 
@@ -53,12 +54,23 @@ cp .env.example .env
 
 #### **Variáveis Críticas:**
 
-**CLAUDE API:**
+**DEEPSEEK API:**
 ```
-CLAUDE_API_KEY=sk-ant-v0-xxxxx...
-CLAUDE_MODEL=claude-opus-4-20250514
+DEEPSEEK_API_KEY=sk-xxxxx...
+DEEPSEEK_MODEL=deepseek-chat
 ```
-Obtém em: https://console.anthropic.com/
+Obtém em: https://platform.deepseek.com/
+
+**LINKEDIN:**
+```
+LINKEDIN_LI_AT=AQEDASxxxxxxxxxx...
+```
+⚠️ **Obter o token li_at do LinkedIn:**
+1. Faça login no LinkedIn (https://www.linkedin.com)
+2. Abra o DevTools (F12 ou Cmd+Option+I)
+3. Vá em "Application" → "Cookies" → Procure por "li_at"
+4. Copie o valor completo
+5. Cole em `LINKEDIN_LI_AT`
 
 **GMAIL:**
 ```
@@ -193,8 +205,8 @@ Contém:
 
 ### ✅ Implementado
 
-- [x] Scraping multi-plataforma (Indeed, BeBee, Glassdoor)
-- [x] Análise de relevância com Claude
+- [x] Scraping multi-plataforma (Indeed, BeBee, Glassdoor, LinkedIn)
+- [x] Análise de relevância com DeepSeek API
 - [x] Geração de CV personalizado por vaga
 - [x] Geração de cover letter inteligente
 - [x] Envio de email automático (Gmail SMTP)
@@ -203,10 +215,10 @@ Contém:
 - [x] Scheduler automático (cron)
 - [x] Sistema de logging detalhado
 - [x] Filtragem por salário e localização
+- [x] Integração com LinkedIn (scraping de vagas)
 
 ### 🔄 Melhorias Futuras
 
-- [ ] Integração com LinkedIn API
 - [ ] Detecção de vagas duplicadas via ML
 - [ ] Export de stats para Spreadsheet
 - [ ] Webhook para notificações (Discord/Slack)
@@ -218,9 +230,9 @@ Contém:
 
 ## 🐛 Troubleshooting
 
-### **"Erro: CLAUDE_API_KEY não está definida"**
+### **"Erro: DEEPSEEK_API_KEY não está definida"**
 ```
-✓ Solução: Adicione CLAUDE_API_KEY ao .env
+✓ Solução: Adicione DEEPSEEK_API_KEY ao .env
 ```
 
 ### **"Erro ao conectar Gmail"**
