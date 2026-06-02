@@ -131,6 +131,19 @@ npm run scrape
 
 Faz scraping uma única vez e mostra resultados.
 
+### **Chronicle Tips - Análise de Histórico**
+
+```bash
+npm run chronicle:tips
+```
+
+Revisa o histórico de sessões e recomenda dicas personalizadas baseadas em padrões de uso:
+- Analisa fontes de vagas mais eficientes
+- Verifica tendências de match score
+- Recommenda otimizações de busca
+- Identifica padrões de habilidades demandadas
+- Fornece insights sobre taxas de aplicação
+
 ---
 
 ## 📊 Resultados & Tracking

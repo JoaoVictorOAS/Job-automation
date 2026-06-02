@@ -9,7 +9,8 @@
     "dev": "nodemon index.js",
     "scrape": "node scripts/scraper.js",
     "process": "node scripts/processor.js",
-    "db:init": "node scripts/db-init.js"
+    "db:init": "node scripts/db-init.js",
+    "chronicle:tips": "node scripts/chronicle-tips.js"
   },
   "keywords": ["job", "automation", "scraping", "email"],
   "author": "João Victor",
